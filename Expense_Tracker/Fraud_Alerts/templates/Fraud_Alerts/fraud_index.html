@@ -28,7 +28,7 @@
             <label for="category" class="block mb-2">Category:</label>
             <input type="text" name="category" required class="w-full p-2 border border-gray-300 rounded">
         </div>
-        <button type="button" class="mt-4 bg-red-600 text-white py-2 px-4 rounded" onclick="alert('Fraud detection feature is under development. Please check back later.')">Check Fraud</button>
+        <a href="{% url 'fraud_predict' %}" class="mt-4 bg-red-600 text-white py-2 px-4 rounded inline-block">Check Fraud</a>
     </form>
 
     <!-- Result Box (Hidden) -->

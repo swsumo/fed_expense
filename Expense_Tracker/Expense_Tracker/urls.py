@@ -21,14 +21,14 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from .views import home, login_view, fraud_alerts, track_expenses, export_reports
+from .views import home, login_view, track_expenses, export_reports
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path('', home, name='home'),  # Landing page (landing_page.html)
-    path('login/', login_view, name='login'),  # Login page (login.html)
-    path('fraud-alerts/', fraud_alerts, name='fraud_alerts'),  # Fraud alerts page
-    path('track_expenses/', track_expenses, name='track_expenses'),  # Track expenses (base.html or another dashboard)
+    path('', home, name='home'),  # Landing page
+    path('login/', login_view, name='login'),  # Login page
+    path('track_expenses/', track_expenses, name='track_expenses'),
     path('export-reports/', export_reports, name='export_reports'),
-    path('accounts/', include('accounts.urls')),  # If you have an accounts app
+    path('accounts/', include('accounts.urls')),
+    path('fraud-alerts/', include('Fraud_Alerts.urls')),  # Include Fraud_Alerts URLs
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
