@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExpenseWise</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { display: flex; background-color: #f4f6f9; }
+        .sidebar { width: 250px; background-color: #6b46c1; color: white; height: 100vh; padding: 20px; }
+        .sidebar a { color: white; text-decoration: none; display: block; margin-bottom: 15px; cursor: pointer; }
+        .sidebar a:hover { color: #d6d8db; }
+        .container { flex-grow: 1; margin: 2rem; background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .modal-content { border-radius: 10px; }
+        .content-section { display: none; }
+        .content-section.active { display: block; }
+        .card { margin-bottom: 20px; }
+        .members-list { display: none; margin-top: 10px; }
+        .badge { cursor: pointer; }
+        .debt-item { border-left: 3px solid #28a745; }
+        .credit-item { border-left: 3px solid #dc3545; }
+        .chart-container { position: relative; height: 300px; margin-bottom: 20px; }
+        .budget-progress { height: 20px; margin-bottom: 5px; }
+        .budget-danger { background-color: #dc3545; }
+        .budget-warning { background-color: #ffc107; }
+        .budget-safe { background-color: #28a745; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>ExpenseWise</h2>
+        <nav>
+            <a onclick="showSection('dashboard')">Dashboard</a>
+            <a onclick="showSection('groups')">My Groups</a>
+            <a onclick="showSection('manage-groups')">Manage Groups</a>
+        </nav>
+    </div>
+    
+    <div class="container">
+        <!-- Dashboard Section -->
+        <div id="dashboard" class="content-section active">
+            <h2>Welcome to ExpenseWise</h2>
+            <p>Select a section from the sidebar to begin.</p>
+        </div>
+        
+        <!-- Groups Section -->
+        <div id="groups" class="content-section">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2>Your Groups</h2>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createGroupModal">
+                        Create Group
+                    </button>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group" id="groups-list">
+                        <li class="list-group-item">No groups found.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Manage Groups Section -->
+        <div id="manage-groups" class="content-section">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Manage Groups</h2>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex gap-2 mb-4">
+                        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addExpenseModal">
+                            Add Expense
+                        </button>
+                        <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#addMemberModal">
+                            Add Member
+                        </button>
+                    </div>
+                    
+                    <!-- Add Expense Form -->
+                    <div class="card mb-4">
+                        <div class="card-header">Add an Expense</div>
+                        <div class="card-body">
+                            <form id="main-add-expense-form">
+                                <div class="mb-3">
+                                    <label for="main_expense_group" class="form-label">Select Group</label>
+                                    <select class="form-select" id="main_expense_group" name="group" required onchange="updatePayerDropdown('main_payer')">
+                                        <option value="">No groups available</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="main_payer" class="form-label">Paid By</label>
+                                    <select class="form-select" id="main_payer" name="payer" required>
+                                        <option value="">Select group first</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="main_expense_description" class="form-label">Description</label>
+                                    <input type="text" class="form-control" id="main_expense_description" name="description" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="main_expense_amount" class="form-label">Amount</label>
+                                    <input type="number" class="form-control" id="main_expense_amount" name="amount" step="0.01" min="0.01" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Add Expense</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Debt Settlement -->
+                    <div class="card">
+                        <div class="card-header">Balances</div>
+                        <div class="card-body">
+                            <div id="balances-container">
+                                <div class="alert alert-info">No balances to show</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create Group Modal -->
+    <div class="modal fade" id="createGroupModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create a New Group</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="create-group-form">
+                        <label for="group_name">Group Name</label>
+                        <input type="text" id="group_name" name="group_name" class="form-control" required>
+                        <button type="submit" class="btn btn-primary mt-2">Create</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Member Modal -->
+    <div class="modal fade" id="addMemberModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Member</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-member-form">
+                        <div class="mb-3">
+                            <label for="member_group" class="form-label">Group</label>
+                            <select id="member_group" class="form-select" required>
+                                <option value="">No groups available</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="member_name" class="form-label">Name</label>
+                            <input type="text" id="member_name" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="member_phone" class="form-label">Phone</label>
+                            <input type="text" id="member_phone" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="member_email" class="form-label">Email</label>
+                            <input type="email" id="member_email" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="member_budget" class="form-label">Budget Limit (optional)</label>
+                            <input type="number" id="member_budget" class="form-control" step="0.01" min="0" placeholder="Leave empty for no limit">
+                        </div>
+                        <button type="submit" class="btn btn-success">Add Member</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+        
+    <!-- Add Expense Modal -->
+    <div class="modal fade" id="addExpenseModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Expense</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-expense-form">
+                        <div class="mb-3">
+                            <label for="expense_group" class="form-label">Group</label>
+                            <select id="expense_group" class="form-select" required onchange="updatePayerDropdown('expense_payer')">
+                                <option value="">No groups available</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="expense_payer" class="form-label">Paid By</label>
+                            <select id="expense_payer" class="form-select" name="payer" required>
+                                <option value="">Select group first</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="expense_description" class="form-label">Description</label>
+                            <input type="text" id="expense_description" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="expense_amount" class="form-label">Amount</label>
+                            <input type="number" id="expense_amount" class="form-control" step="0.01" min="0.01" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Expense</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Data storage
+        const appData = {
+            groups: [],
+            expenses: [],
+            members: [],
+            balances: {},
+            charts: {}
+        };
+
+        // Show the selected section and hide others
+        function showSection(sectionId) {
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+                // Destroy any existing charts when switching sections
+                if (section.id in appData.charts) {
+                    appData.charts[section.id].destroy();
+                    delete appData.charts[section.id];
+                }
+            });
+            document.getElementById(sectionId).classList.add('active');
+            
+            // Render charts when showing groups section
+            if (sectionId === 'groups') {
+                renderGroupCharts();
+            }
+        }
+        
+        // Update all group dropdowns in the page
+        function updateGroupDropdowns() {
+            const dropdowns = [
+                document.getElementById('expense_group'),
+                document.getElementById('member_group'),
+                document.getElementById('main_expense_group')
+            ];
+            
+            dropdowns.forEach(dropdown => {
+                if (dropdown) {
+                    // Clear existing options except the first one
+                    while (dropdown.options.length > 1) {
+                        dropdown.remove(1);
+                    }
+                    
+                    // Add current groups
+                    appData.groups.forEach(group => {
+                        const option = document.createElement('option');
+                        option.value = group.id;
+                        option.textContent = group.name;
+                        dropdown.appendChild(option);
+                    });
+                    
+                    // Update the "no groups" message if needed
+                    if (dropdown.options.length === 1 && dropdown.options[0].value === "") {
+                        dropdown.options[0].textContent = appData.groups.length ? "Select a group" : "No groups available";
+                    }
+                }
+            });
+        }
+        
+        // Update payer dropdown when group changes
+        function updatePayerDropdown(dropdownId) {
+            const groupId = event.target.value;
+            const dropdown = document.getElementById(dropdownId);
+            
+            // Clear existing options
+            dropdown.innerHTML = '<option value="">Select payer</option>';
+            
+            if (!groupId) return;
+            
+            // Add members of selected group
+            const groupMembers = appData.members.filter(m => m.groupId === groupId);
+            groupMembers.forEach(member => {
+                const option = document.createElement('option');
+                option.value = member.id;
+                option.textContent = member.name;
+                dropdown.appendChild(option);
+            });
+        }
+        
+        // Update groups list display
+        function updateGroupsList() {
+            const groupsList = document.getElementById('groups-list');
+            groupsList.innerHTML = '';
+            
+            if (appData.groups.length === 0) {
+                groupsList.innerHTML = '<li class="list-group-item">No groups found.</li>';
+                return;
+            }
+            
+            appData.groups.forEach(group => {
+                const groupMembers = appData.members.filter(m => m.groupId === group.id);
+                const groupExpenses = appData.expenses.filter(e => e.groupId === group.id);
+                
+                const groupItem = document.createElement('li');
+                groupItem.classList.add('list-group-item');
+                groupItem.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong>${group.name}</strong>
+                        <span class="badge bg-primary" onclick="toggleMembers('${group.id}')">${groupMembers.length} Members</span>
+                    </div>
+                    <div class="members-list" id="members-${group.id}"></div>
+                    <div class="chart-container mt-3">
+                        <canvas id="chart-${group.id}"></canvas>
+                    </div>
+                `;
+                groupsList.appendChild(groupItem);
+                
+                // Update members list for this group
+                updateMembersList(group.id);
+            });
+        }
+        
+        // Render charts for all groups
+        function renderGroupCharts() {
+            appData.groups.forEach(group => {
+                renderGroupChart(group.id);
+            });
+        }
+        
+        // Render chart for a specific group
+        function renderGroupChart(groupId) {
+            const canvas = document.getElementById(`chart-${groupId}`);
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const groupMembers = appData.members.filter(m => m.groupId === groupId);
+            const groupExpenses = appData.expenses.filter(e => e.groupId === groupId);
+            
+            // Calculate total spent by each member
+            const memberSpending = {};
+            groupMembers.forEach(member => {
+                memberSpending[member.id] = 0;
+            });
+            
+            groupExpenses.forEach(expense => {
+                if (memberSpending[expense.payer] !== undefined) {
+                    memberSpending[expense.payer] += expense.amount;
+                }
+            });
+            
+            // Prepare data for chart
+            const labels = [];
+            const spendingData = [];
+            const backgroundColors = [];
+            const budgetData = [];
+            const budgetColors = [];
+            
+            groupMembers.forEach(member => {
+                labels.push(member.name);
+                spendingData.push(memberSpending[member.id] || 0);
+                backgroundColors.push(getRandomColor());
+                
+                if (member.budget) {
+                    budgetData.push(member.budget);
+                    budgetColors.push('#ff6384');
+                }
+            });
+            
+            // Destroy existing chart if it exists
+            if (appData.charts[`chart-${groupId}`]) {
+                appData.charts[`chart-${groupId}`].destroy();
+            }
+            
+            // Create new chart
+            appData.charts[`chart-${groupId}`] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Amount Spent',
+                            data: spendingData,
+                            backgroundColor: backgroundColors,
+                            borderColor: backgroundColors.map(c => c.replace('0.6', '1')),
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Budget Limit',
+                            data: budgetData,
+                            backgroundColor: budgetColors,
+                            borderColor: budgetColors,
+                            borderWidth: 1,
+                            type: 'line',
+                            fill: false,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Spending by Member'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const member = groupMembers.find(m => m.name === context.label);
+                                    if (member && member.budget) {
+                                        const remaining = member.budget - context.raw;
+                                        return `Budget: $${member.budget.toFixed(2)}\nRemaining: $${remaining.toFixed(2)}`;
+                                    }
+                                    return '';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Amount ($)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Generate random color for charts
+        function getRandomColor() {
+            const r = Math.floor(Math.random() * 255);
+            const g = Math.floor(Math.random() * 255);
+            const b = Math.floor(Math.random() * 255);
+            return `rgba(${r}, ${g}, ${b}, 0.6)`;
+        }
+        
+        // Toggle members list visibility
+        function toggleMembers(groupId) {
+            const membersList = document.getElementById(`members-${groupId}`);
+            membersList.style.display = membersList.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        // Update members list for a specific group
+        function updateMembersList(groupId) {
+            const membersList = document.getElementById(`members-${groupId}`);
+            if (!membersList) return;
+            
+            const groupMembers = appData.members.filter(m => m.groupId === groupId);
+            const groupExpenses = appData.expenses.filter(e => e.groupId === groupId);
+            
+            if (groupMembers.length === 0) {
+                membersList.innerHTML = '<div class="mt-2 text-muted">No members in this group</div>';
+                return;
+            }
+            
+            membersList.innerHTML = '<ul class="list-group mt-2"></ul>';
+            const ul = membersList.querySelector('ul');
+            
+            // Calculate total spent by each member
+            const memberSpending = {};
+            groupMembers.forEach(member => {
+                memberSpending[member.id] = 0;
+            });
+            
+            groupExpenses.forEach(expense => {
+                if (memberSpending[expense.payer] !== undefined) {
+                    memberSpending[expense.payer] += expense.amount;
+                }
+            });
+            
+            groupMembers.forEach(member => {
+                const spent = memberSpending[member.id] || 0;
+                const li = document.createElement('li');
+                li.classList.add('list-group-item');
+                
+                let budgetInfo = '';
+                if (member.budget) {
+                    const remaining = member.budget - spent;
+                    const percentage = (spent / member.budget) * 100;
+                    let progressClass = 'budget-safe';
+                    if (percentage > 75) progressClass = 'budget-warning';
+                    if (percentage >= 100) progressClass = 'budget-danger';
+                    
+                    budgetInfo = `
+                        <div class="mt-2">
+                            <div class="d-flex justify-content-between">
+                                <small>Budget: $${member.budget.toFixed(2)}</small>
+                                <small>Remaining: $${remaining.toFixed(2)}</small>
+                            </div>
+                            <div class="progress budget-progress">
+                                <div class="progress-bar ${progressClass}" 
+                                     role="progressbar" 
+                                     style="width: ${Math.min(percentage, 100)}%" 
+                                     aria-valuenow="${percentage}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                li.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${member.name}</strong> 
+                            <small class="text-muted">${member.email}</small>
+                        </div>
+                        <div>
+                            <span class="badge bg-primary">$${spent.toFixed(2)} spent</span>
+                            <button class="btn btn-sm btn-danger ms-2" onclick="removeMember('${member.id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    ${budgetInfo}
+                `;
+                ul.appendChild(li);
+            });
+        }
+        
+        // Remove a member
+        function removeMember(memberId) {
+            appData.members = appData.members.filter(m => m.id !== memberId);
+            updateGroupsList();
+            calculateBalances();
+            renderGroupCharts();
+        }
+        
+        // Calculate balances between members
+        function calculateBalances() {
+            // Reset all balances
+            appData.balances = {};
+            
+            // Process each group separately
+            appData.groups.forEach(group => {
+                const groupMembers = appData.members.filter(m => m.groupId === group.id);
+                const groupExpenses = appData.expenses.filter(e => e.groupId === group.id);
+                
+                if (groupMembers.length === 0 || groupExpenses.length === 0) return;
+                
+                // Initialize balances for this group
+                const groupBalances = {};
+                groupMembers.forEach(member => {
+                    groupBalances[member.id] = 0;
+                });
+                
+                // Calculate total spent and per person share
+                const totalExpenses = groupExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+                const perPersonShare = totalExpenses / groupMembers.length;
+                
+                // Process each expense
+                groupExpenses.forEach(expense => {
+                    // Add to payer's balance
+                    groupBalances[expense.payer] += expense.amount;
+                });
+                
+                // Calculate net balances
+                groupMembers.forEach(member => {
+                    groupBalances[member.id] -= perPersonShare;
+                });
+                
+                // Store balances
+                appData.balances[group.id] = groupBalances;
+            });
+            
+            updateBalancesDisplay();
+        }
+        
+        // Update balances display
+        function updateBalancesDisplay() {
+            const container = document.getElementById('balances-container');
+            container.innerHTML = '';
+            
+            let hasBalances = false;
+            
+            // Process each group
+            appData.groups.forEach(group => {
+                const groupBalances = appData.balances[group.id];
+                if (!groupBalances) return;
+                
+                const groupMembers = appData.members.filter(m => m.groupId === group.id);
+                if (groupMembers.length === 0) return;
+                
+                // Create group balance card
+                const groupCard = document.createElement('div');
+                groupCard.className = 'card mb-3';
+                groupCard.innerHTML = `
+                    <div class="card-header">
+                        <h5>${group.name}</h5>
+                    </div>
+                    <div class="card-body" id="balances-${group.id}"></div>
+                `;
+                container.appendChild(groupCard);
+                
+                const balancesList = document.getElementById(`balances-${group.id}`);
+                
+                // Calculate who owes whom
+                const balances = calculateDebts(groupBalances, groupMembers);
+                
+                if (balances.length === 0) {
+                    balancesList.innerHTML = '<div class="alert alert-success">All balances are settled!</div>';
+                    return;
+                }
+                
+                hasBalances = true;
+                
+                // Create list of balances
+                const ul = document.createElement('ul');
+                ul.className = 'list-group';
+                
+                balances.forEach(balance => {
+                    const fromMember = groupMembers.find(m => m.id === balance.from);
+                    const toMember = groupMembers.find(m => m.id === balance.to);
+                    
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    li.innerHTML = `
+                        <span>
+                            <strong>${fromMember.name}</strong> owes 
+                            <strong>${toMember.name}</strong>
+                        </span>
+                        <span class="badge bg-primary rounded-pill">$${balance.amount.toFixed(2)}</span>
+                    `;
+                    ul.appendChild(li);
+                });
+                
+                balancesList.appendChild(ul);
+            });
+            
+            if (!hasBalances) {
+                container.innerHTML = '<div class="alert alert-info">No balances to show</div>';
+            }
+        }
+        
+        // Calculate who owes whom (simplified debt calculation)
+        function calculateDebts(balances, members) {
+            const debts = [];
+            const balancesCopy = {...balances};
+            
+            // Convert to array of {memberId, balance}
+            const balanceEntries = members.map(member => ({
+                id: member.id,
+                balance: balancesCopy[member.id] || 0
+            }));
+            
+            // Sort by balance (ascending)
+            balanceEntries.sort((a, b) => a.balance - b.balance);
+            
+            let i = 0;
+            let j = balanceEntries.length - 1;
+            
+            while (i < j) {
+                const debtor = balanceEntries[i];
+                const creditor = balanceEntries[j];
+                
+                // Round to avoid floating point precision issues
+                const debtorBalance = Math.round(debtor.balance * 100) / 100;
+                const creditorBalance = Math.round(creditor.balance * 100) / 100;
+                
+                if (debtorBalance === 0) {
+                    i++;
+                    continue;
+                }
+                
+                if (creditorBalance === 0) {
+                    j--;
+                    continue;
+                }
+                
+                const amount = Math.min(-debtorBalance, creditorBalance);
+                const roundedAmount = Math.round(amount * 100) / 100;
+                
+                if (roundedAmount > 0.01) { // Ignore tiny amounts
+                    debts.push({
+                        from: debtor.id,
+                        to: creditor.id,
+                        amount: roundedAmount
+                    });
+                    
+                    // Update balances
+                    debtor.balance += roundedAmount;
+                    creditor.balance -= roundedAmount;
+                } else {
+                    if (-debtorBalance < creditorBalance) {
+                        i++;
+                    } else {
+                        j--;
+                    }
+                }
+            }
+            
+            return debts;
+        }
+        
+        // Create group form handler
+        document.getElementById("create-group-form").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const groupName = document.getElementById("group_name").value;
+            
+            // Create new group
+            const newGroup = {
+                id: Date.now().toString(),
+                name: groupName,
+                createdAt: new Date()
+            };
+            
+            appData.groups.push(newGroup);
+            updateGroupDropdowns();
+            updateGroupsList();
+            
+            // Close modal and reset form
+            bootstrap.Modal.getInstance(document.getElementById('createGroupModal')).hide();
+            this.reset();
+        });
+
+        // Add member form handler
+        document.getElementById("add-member-form").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const groupId = document.getElementById("member_group").value;
+            const name = document.getElementById("member_name").value;
+            const phone = document.getElementById("member_phone").value;
+            const email = document.getElementById("member_email").value;
+            const budget = parseFloat(document.getElementById("member_budget").value) || null;
+            
+            // Create new member
+            const newMember = {
+                id: Date.now().toString(),
+                groupId: groupId,
+                name: name,
+                phone: phone,
+                email: email,
+                budget: budget,
+                joinedAt: new Date()
+            };
+            
+            appData.members.push(newMember);
+            updateGroupsList();
+            calculateBalances();
+            renderGroupCharts();
+            
+            // Close modal and reset form
+            bootstrap.Modal.getInstance(document.getElementById('addMemberModal')).hide();
+            this.reset();
+        });
+        
+        // Add expense form handler (modal)
+        document.getElementById("add-expense-form").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const groupId = document.getElementById("expense_group").value;
+            const payerId = document.getElementById("expense_payer").value;
+            const description = document.getElementById("expense_description").value;
+            const amount = parseFloat(document.getElementById("expense_amount").value);
+            
+            // Create new expense
+            const newExpense = {
+                id: Date.now().toString(),
+                groupId: groupId,
+                payer: payerId,
+                description: description,
+                amount: amount,
+                date: new Date()
+            };
+            
+            appData.expenses.push(newExpense);
+            calculateBalances();
+            updateGroupsList();
+            renderGroupCharts();
+            
+            // Close modal and reset form
+            bootstrap.Modal.getInstance(document.getElementById('addExpenseModal')).hide();
+            this.reset();
+        });
+        
+        // Add expense form handler (main form)
+        document.getElementById("main-add-expense-form").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const groupId = document.getElementById("main_expense_group").value;
+            const payerId = document.getElementById("main_payer").value;
+            const description = document.getElementById("main_expense_description").value;
+            const amount = parseFloat(document.getElementById("main_expense_amount").value);
+            
+            // Create new expense
+            const newExpense = {
+                id: Date.now().toString(),
+                groupId: groupId,
+                payer: payerId,
+                description: description,
+                amount: amount,
+                date: new Date()
+            };
+            
+            appData.expenses.push(newExpense);
+            calculateBalances();
+            updateGroupsList();
+            renderGroupCharts();
+            
+            // Reset form
+            this.reset();
+        });
+        
+        // Initialize the app
+        function init() {
+            updateGroupDropdowns();
+            updateGroupsList();
+            calculateBalances();
+        }
+        
+        // Start the app
+        init();
+    </script>
+</body>
+</html>

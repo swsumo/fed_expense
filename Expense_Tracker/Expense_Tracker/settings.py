@@ -40,7 +40,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "accounts",
     "Fraud_Alerts",
-    'Expense_Tracker',
+    "Expense_Tracker",
+    "Expense_Summary",
+    "shared_expenses",
 
 ]
 

@@ -15,8 +15,6 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
-
-
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -29,6 +27,8 @@ urlpatterns = [
     path('login/', login_view, name='login'),  # Login page
     path('track_expenses/', track_expenses, name='track_expenses'),
     path('export-reports/', export_reports, name='export_reports'),
+    path('shared_expenses/', include('shared_expenses.urls')),   # Add this line
     path('accounts/', include('accounts.urls')),
     path('fraud-alerts/', include('Fraud_Alerts.urls')),  # Include Fraud_Alerts URLs
+    path('expense-summary/', include('Expense_Summary.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

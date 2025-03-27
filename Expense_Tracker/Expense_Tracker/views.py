@@ -13,6 +13,9 @@ def export_reports(request):
 def fraud_alerts(request):
     return render(request, 'Fraud_Alerts/fraud_index.html')
 
+def group_management(request):
+    return render(request, 'shared_expenses/group_management.html')
+
 @login_required
 def track_expenses(request):
     return render(request, 'Expense_Tracker/base.html')  # This can be adjusted later to render a dedicated dashboard
